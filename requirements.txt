@@ -1,16 +1,11 @@
+# Base dependencies (REQUIRED)
 discord.py>=2.0.0
 python-dotenv>=0.19.0
-sentence-transformers>=2.2.0
-chromadb>=0.3.0
 psutil>=5.9.0
-prometheus-client>=0.17.0
 pydantic>=2.0.0
 tenacity>=8.2.0
 typing-extensions>=4.5.0
-llama-cpp-python>=0.2.0
 numpy>=1.24.0
-torch>=2.0.0
-transformers>=4.30.0
 tqdm>=4.65.0
 aiohttp>=3.8.0
 asyncio>=3.4.3
@@ -18,5 +13,22 @@ python-dateutil>=2.8.2
 pytz>=2023.3
 beautifulsoup4>=4.9.0
 requests>=2.25.0
-matplotlib>=3.3.0
-seaborn>=0.11.0 
+
+# ML dependencies (REQUIRED for core functionality)
+# NOTE: If you're experiencing build issues or slow builds, consider
+# using prebuilt-ml option in docker-compose.yml instead of disabling these
+
+# Text embeddings - required for semantic search, history, etc.
+sentence-transformers>=2.2.0
+
+# Vector database - required for storing and searching embeddings
+chromadb>=0.3.0
+
+# NLP processing - required for text analysis
+spacy>=3.5.0
+
+# Deep learning - required for vector embeddings
+torch>=2.0.0 --extra-index-url https://download.pytorch.org/whl/cpu
+
+# LLM inference - required for advanced AI responses
+llama-cpp-python==0.2.20 

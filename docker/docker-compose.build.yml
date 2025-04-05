@@ -1,0 +1,27 @@
+version: '3.8'
+
+# Specialized compose file for optimized building
+# Usage: docker-compose -f docker-compose.build.yml build
+
+services:
+  omnius:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Build optimization settings
+        - BUILDKIT_INLINE_CACHE=1
+        - PIP_PROGRESS_BAR=on
+        - PIP_TIMEOUT=600     # 10 minute timeout for slow connections
+        - PIP_RETRIES=3
+        - PIP_VERBOSE=1
+    image: omnius:latest      # Tag the image for reuse
+    deploy:
+      resources:
+        limits:
+          # Allocate high resources for maximum build performance
+          memory: 12G
+          cpus: '8.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0' 

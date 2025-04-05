@@ -1,6 +1,135 @@
 # Omnius Discord Bot
 
-A Dune-themed Discord bot powered by local LLM (Mistral 7B) for intelligent conversations and knowledge management.
+A powerful Discord bot with ML capabilities for intelligent conversations and knowledge management.
+
+## ⚠️ Build Time Expectations ⚠️
+
+**First-time builds will take 5-20 minutes** depending on your system resources. This is normal and expected for ML-based applications!
+
+- The build progresses through 6 stages with clear progress indicators
+- Each ML component must be compiled for your specific system
+- Subsequent builds will be much faster thanks to Docker caching
+
+## Quick Start
+
+### Prerequisites
+- Docker and Docker Compose
+- Discord Bot Token
+- 8GB+ RAM recommended (12GB+ ideal)
+- 5GB+ free disk space
+- A stable internet connection
+
+### Recommended: Use the Build Script for Faster Results
+
+```bash
+# For Linux/macOS
+chmod +x build.sh
+./build.sh
+
+# For Windows (PowerShell)
+.\build.ps1
+```
+
+These scripts will guide you through the build process with optimal settings.
+
+### Alternative: Standard Deployment
+```bash
+# 1. Clone the repository
+git clone https://github.com/yourusername/omnius.git
+cd omnius
+
+# 2. Configure your Discord token in the .env file
+echo "DISCORD_TOKEN=your_token_here" > .env
+
+# 3. Start the bot (be patient during first build!)
+docker-compose up -d
+```
+
+## Build Process Explained
+
+The Docker build completes these steps:
+1. Installing base setup tools
+2. Installing base Discord dependencies
+3. Installing embedding model (sentence-transformers)
+4. Installing vector database (chromadb and spacy)
+5. Installing deep learning framework (PyTorch)
+6. Installing LLM inference engine (llama-cpp-python)
+
+You can monitor detailed progress with:
+```bash
+docker-compose -f docker-compose.build.yml build --progress=plain
+```
+
+## Features
+
+### Core Features (All Require ML)
+- Message History & Search
+- Vector Knowledge Base
+- Natural Language Processing
+- Local LLM Integration
+
+### Basic Discord Commands
+- Help and Status Commands
+- Fun Themed Responses
+- Administration Tools
+
+## Configuration
+
+All configuration is done through the `.env` file:
+
+```
+# Discord Bot Configuration
+DISCORD_TOKEN=your_token_here
+
+# LLM Configuration (required for AI responses)
+LLM_MODEL_PATH=models/mistral-7b-v0.1.gguf
+
+# Vector Store Configuration
+VECTOR_STORE_PATH=data/vector_store
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+```
+
+## Available Commands
+
+### Basic Commands
+- `!help_omnius` - Show help information
+- `!spice` - Get a quote about spice
+- `!prescience` - Receive a vision of the future
+
+### ML-Powered Commands
+- `!history` - Search through message history
+- `!search` - Search the knowledge base
+- `!ask <question>` - Ask the LLM a question
+
+## Troubleshooting
+
+### Build Taking Too Long
+- This is normal! ML dependencies require compilation
+- We allocate 12GB RAM and 8 CPUs during build for optimal performance
+- Try using our build script: `./build.sh` or `.\build.ps1`
+- First build: 5-20 minutes, later builds: 1-5 minutes
+
+### Memory Issues During Build
+- Increase Docker's memory allocation (12GB recommended for optimal performance)
+- If using resource-constrained hardware, see `PREBUILT.md` for alternatives
+- On low memory systems, you might need to increase Docker swap space
+
+### Limited Docker Resources
+- On Docker Desktop, go to Settings → Resources and increase memory (8GB minimum)
+- Increase CPU allocation to at least 4 cores (8+ recommended)
+- For detailed information, see BUILD_INFO.md
+
+### LLM Model Issues
+- Make sure you've downloaded the model file to the models directory
+- Run `python scripts/download_model.py` to get the default model
+
+### Limited Disk Space
+- ML dependencies and models require about 5GB of space
+- Try running `docker system prune` to clear unused Docker data
+
+## Resources
+- [Discord Developer Portal](https://discord.com/developers/applications)
+- [Bot Invitation Guide](https://discordjs.guide/preparations/adding-your-bot-to-servers.html)
 
 ## 🌟 Features
 
