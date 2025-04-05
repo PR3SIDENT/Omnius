@@ -1,3 +1,8 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
 # Python
 __pycache__/
 *.py[cod]
@@ -19,33 +24,70 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Virtual Environment
+# Virtual environments
 venv/
 ENV/
 env/
+.venv/
+.python-version
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*.swn
+*.bak
+*.orig
+*.rej
+*~
 
-# Logs
-logs/
+# Logs and databases
+logs/*
+!logs/.gitkeep
 *.log
+*.sqlite
+*.sqlite3
+*.db
 
-# Environment variables
-.env
-
-# Data
-data/vector_store/
-data/knowledge/
-data/logs/
+# Data and models
+data/*
+!data/.gitkeep
+models/*
+!models/.gitkeep
+vector_store/
+knowledge/
+*.model
+*.bin
+*.vec
+*.npy
+*.npz
+*.pkl
+*.joblib
 
 # Docker
 .docker/
+docker-compose.override.yml
 
-# OS
+# OS generated files
 .DS_Store
-Thumbs.db 
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Testing
+.pytest_cache/
+.coverage
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.tox/
+.nox/
+.mypy_cache/ 

@@ -12,6 +12,7 @@ import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 from config.config import KNOWLEDGE_BASE_PATH
+from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +21,19 @@ class VectorStore(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        self.message_store_path = os.path.join(KNOWLEDGE_BASE_PATH, 'messages')
-        self.db_path = os.path.join(self.message_store_path, 'messages.db')
-        self.vector_store_path = os.path.join(KNOWLEDGE_BASE_PATH, 'vector_store')
-        os.makedirs(self.vector_store_path, exist_ok=True)
-        
-        # Initialize vector database
-        self._init_vector_db()
-        
-        # Initialize embedding model
-        self._init_embedding_model()
+        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.client = chromadb.Client(Settings(
+            persist_directory=os.path.join(os.getenv('KNOWLEDGE_BASE_PATH', 'data/knowledge'), 'vector_store'),
+            anonymized_telemetry=False
+        ))
+        self.collection = self.client.get_or_create_collection(
+            name="messages",
+            metadata={"hnsw:space": "cosine"}
+        )
+        self.processing_task = None
+        self.message_queue = asyncio.Queue()
+        self.bot.loop.create_task(self._process_message_queue())
+        logger.info("VectorStore cog initialized")
         
         # Configuration
         self.retention_days = 7  # Keep individual messages for 7 days
@@ -39,58 +43,73 @@ class VectorStore(commands.Cog):
         self.processing_thread = threading.Thread(target=self._process_old_messages, daemon=True)
         self.processing_thread.start()
         
-    def _init_vector_db(self):
-        """Initialize the vector database"""
+    async def _process_message_queue(self):
+        """Background task to process messages into embeddings"""
+        while True:
+            try:
+                # Process messages in batches
+                batch = []
+                try:
+                    # Get up to 100 messages or wait for 5 seconds
+                    for _ in range(100):
+                        try:
+                            message = await asyncio.wait_for(self.message_queue.get(), timeout=5.0)
+                            batch.append(message)
+                        except asyncio.TimeoutError:
+                            break
+                except Exception as e:
+                    logger.error(f"Error getting message batch: {e}")
+                    continue
+
+                if batch:
+                    await self._save_batch(batch)
+                
+                await asyncio.sleep(1)  # Prevent CPU overload
+            except Exception as e:
+                logger.error(f"Error in message processing loop: {e}")
+                await asyncio.sleep(5)  # Wait longer on error
+
+    async def _save_batch(self, messages: List[Dict[str, Any]]):
+        """Save a batch of messages as embeddings"""
         try:
-            # Initialize ChromaDB with persistent storage
-            self.vector_db = chromadb.PersistentClient(
-                path=self.vector_store_path,
-                settings=Settings(
-                    anonymized_telemetry=False,
-                    allow_reset=True
-                )
+            # Generate embeddings for the batch
+            texts = [msg['content'] for msg in messages]
+            embeddings = self.embedding_model.encode(texts).tolist()
+            
+            # Prepare metadata
+            metadatas = [{
+                'channel_id': str(msg['channel_id']),
+                'author_id': str(msg['author_id']),
+                'timestamp': msg['timestamp'],
+                'message_id': str(msg['message_id'])
+            } for msg in messages]
+            
+            # Add to collection
+            self.collection.add(
+                embeddings=embeddings,
+                documents=texts,
+                metadatas=metadatas,
+                ids=[f"{msg['channel_id']}_{msg['message_id']}" for msg in messages]
             )
             
-            # Create or get the messages collection
-            self.collection = self.vector_db.get_or_create_collection(
-                name="messages",
-                metadata={"description": "Discord message embeddings"}
-            )
-            
-            logger.info("Vector database initialized successfully")
-            
+            logger.info(f"Saved {len(messages)} messages to vector store")
         except Exception as e:
-            logger.error(f"Error initializing vector database: {e}")
-            # Fallback to in-memory database if persistent storage fails
-            self.vector_db = chromadb.Client()
-            self.collection = self.vector_db.create_collection(name="messages")
-            logger.warning("Using in-memory vector database as fallback")
-            
-    def _init_embedding_model(self):
-        """Initialize the embedding model"""
+            logger.error(f"Error saving batch to vector store: {e}")
+
+    async def queue_message(self, message: discord.Message):
+        """Queue a message for processing into embeddings"""
         try:
-            # Use a lightweight model suitable for embeddings
-            self.model = SentenceTransformer('all-MiniLM-L6-v2')
-            logger.info("Embedding model initialized successfully")
-            
+            formatted_message = {
+                'content': message.content,
+                'channel_id': str(message.channel.id),
+                'author_id': str(message.author.id),
+                'timestamp': message.created_at.isoformat(),
+                'message_id': str(message.id)
+            }
+            await self.message_queue.put(formatted_message)
         except Exception as e:
-            logger.error(f"Error initializing embedding model: {e}")
-            self.model = None
-            
-    def _get_embedding(self, text):
-        """Generate embedding for a text"""
-        if self.model is None:
-            return None
-            
-        try:
-            # Generate embedding
-            embedding = self.model.encode(text)
-            return embedding.tolist()
-            
-        except Exception as e:
-            logger.error(f"Error generating embedding: {e}")
-            return None
-            
+            logger.error(f"Error queueing message: {e}")
+
     def _process_old_messages(self):
         """Background thread to process old messages into embeddings"""
         while True:
@@ -201,15 +220,13 @@ class VectorStore(commands.Cog):
         """Search for similar messages using vector similarity"""
         try:
             # Generate embedding for query
-            query_embedding = self._get_embedding(query)
+            query_embedding = self.embedding_model.encode(query).tolist()
             
-            if query_embedding is None:
-                return []
-                
             # Search vector database
             results = self.collection.query(
                 query_embeddings=[query_embedding],
-                n_results=limit
+                n_results=limit,
+                where={"channel_id": str(ctx.channel.id)}
             )
             
             # Format results
@@ -231,8 +248,8 @@ class VectorStore(commands.Cog):
             
     @commands.command(name='similar')
     @commands.has_permissions(manage_messages=True)
-    async def find_similar_messages(self, ctx, *, query: str):
-        """Find messages similar to the query"""
+    async def find_similar(self, ctx, *, query: str):
+        """Find messages similar to the query using semantic search"""
         try:
             # Search for similar messages
             similar_messages = self._search_similar_messages(query)
@@ -268,30 +285,41 @@ class VectorStore(commands.Cog):
             
     @commands.command(name='context')
     async def get_context(self, ctx, *, query: str):
-        """Get context for a query using vector similarity"""
+        """Get relevant context for a query using semantic search"""
         try:
-            # Search for similar messages
+            # Search for relevant messages
             similar_messages = self._search_similar_messages(query, limit=3)
             
             if not similar_messages:
                 await ctx.send("No relevant context found.")
                 return
                 
-            # Create context string
-            context = "Here is some relevant context:\n\n"
+            # Format context for LLM
+            context = "\n".join([
+                f"Message from {datetime.fromisoformat(metadata['timestamp']).strftime('%Y-%m-%d %H:%M')}:\n{doc}"
+                for doc, metadata in zip(similar_messages, similar_messages['metadata'])
+            ])
             
-            for msg in similar_messages:
-                metadata = msg['metadata']
-                context += f"**{metadata['author']}** ({datetime.fromisoformat(metadata['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}):\n"
-                context += f"{msg['content']}\n\n"
-                
-            # Send context
-            await ctx.send(context)
+            # Get LLM response with context
+            llm_handler = self.bot.get_cog('LLMHandler')
+            if llm_handler:
+                response = await llm_handler.generate_response(ctx, query, context)
+                await ctx.send(response)
+            else:
+                await ctx.send("LLM handler not available.")
             
         except Exception as e:
             logger.error(f"Error getting context: {e}")
             await ctx.send("The path to context is unclear. Let us try again.")
             
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        """Process new messages for vector storage"""
+        if message.author.bot:
+            return
+            
+        await self.queue_message(message)
+
 async def setup(bot):
     """Add the VectorStore cog to the bot"""
     await bot.add_cog(VectorStore(bot)) 

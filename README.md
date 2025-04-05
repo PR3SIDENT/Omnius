@@ -1,116 +1,211 @@
 # Omnius Discord Bot
 
-Omnius is an intelligent Discord bot themed around the Dune universe, designed to enhance community engagement for a game launch. The bot is capable of responding to user queries, categorizing information, and learning from interactions.
+A Dune-themed Discord bot powered by local LLM (Mistral 7B) for intelligent conversations and knowledge management.
 
-## Features
+## 🌟 Features
 
-### Core Functionality
-- **Dune-themed Commands**: Commands like `!spice` and `!prescience` provide thematic responses
-- **Intelligent Responses**: The bot can respond to mentions and direct questions
-- **Message Analysis**: Analyze channel activity and generate insights
+- **Local LLM Integration**: Powered by Mistral 7B in GGUF format
+- **Dune Theme**: Responses styled after the Bene Gesserit
+- **Message Storage**: Efficient SQLite-based message storage
+- **Vector Search**: Semantic search using ChromaDB
+- **Docker Support**: Easy deployment with Docker
+- **Health Monitoring**: Built-in health checks and monitoring
+- **Resource Efficient**: Optimized for CPU-only operation
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Docker and Docker Compose
+- 4GB RAM minimum
+- 4GB disk space
+- Discord Bot Token
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/omnius.git
+cd omnius
+```
+
+2. Run the setup script:
+```bash
+./setup.sh
+```
+
+3. Edit the `.env` file with your Discord token:
+```env
+DISCORD_TOKEN=your_discord_token_here
+```
+
+4. Start the bot:
+```bash
+docker-compose up -d
+```
+
+## 🛠️ Configuration
+
+### Environment Variables
+
+```env
+# Discord Bot Configuration
+DISCORD_TOKEN=your_discord_token_here
+
+# LLM Configuration
+LLM_MODEL_PATH=models/mistral-7b-v0.1.gguf
+LLM_CONTEXT_SIZE=4096
+LLM_THREADS=4
+
+# Vector Store Configuration
+VECTOR_STORE_PATH=data/vector_store
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FILE=logs/omnius.log
+
+# Resource Limits
+MAX_MEMORY_MB=4096
+MAX_CPU_PERCENT=80
+
+# Backup Configuration
+BACKUP_DIR=data/backups
+BACKUP_RETENTION_DAYS=7
+```
+
+### Docker Configuration
+
+The bot is containerized using Docker with the following specifications:
+
+- Base image: Python 3.11-slim
+- Multi-stage build for optimization
+- Non-root user for security
+- Volume mounts for data persistence
+- Health checks enabled
+
+## 💬 Commands
+
+### Basic Commands
+
+- `!spice` - Get a random Dune-themed wisdom
+- `!prescience` - Receive a vision of the future
+- `!ask <question>` - Ask Omnius a question
 
 ### Message Management
-- **Hybrid Storage Approach**: 
-  - Recent messages (7 days) stored individually in SQLite
-  - Older messages processed into vector embeddings for efficient retrieval
-  - Semantic search capabilities for finding relevant context
-- **Message Lifecycle Tracking**: 
-  - Track message edits with full history
-  - Mark deleted messages while preserving their content
-  - View message statistics and history
 
-### Commands
-- `!spice`: Share wisdom about the spice
-- `!prescience`: Share a vision of the future
-- `!ask [question]`: Ask Omnius a question
-- `!analyze [limit]`: Analyze channel activity (requires manage_messages permission)
-- `!messages [limit] [include_deleted]`: View recent messages (requires manage_messages permission)
-- `!stats`: View message statistics (requires manage_messages permission)
-- `!search [query]`: Search for messages containing the query (requires manage_messages permission)
-- `!history [message_id]`: View the edit history of a specific message (requires manage_messages permission)
-- `!similar [query]`: Find messages similar to the query using semantic search (requires manage_messages permission)
-- `!context [query]`: Get relevant context for a query using semantic search
+- `!messages [limit]` - View recent messages (requires manage_messages permission)
+- `!stats` - View message statistics (requires manage_messages permission)
 
-## Technical Implementation
+## 🔧 Development
 
-### Database
-- **SQLite Database**: Stores recent messages (last 7 days)
-- **Vector Database (ChromaDB)**: Stores embeddings of older messages
-- **Message Batching**: Processes messages in batches for improved performance
-- **Tracks Message Lifecycle**: Creation, edits, deletions
+### Project Structure
 
-### Vector Embeddings
-- **Sentence Transformers**: Uses the lightweight `all-MiniLM-L6-v2` model
-- **Semantic Search**: Enables finding similar messages based on meaning, not just keywords
-- **Efficient Storage**: Embeddings are much smaller than full messages
-- **Background Processing**: Automatically processes old messages into embeddings
+```
+omnius/
+├── src/
+│   ├── cogs/
+│   │   ├── llm_handler.py    # LLM integration
+│   │   ├── message_handler.py # Message storage
+│   │   ├── nlp.py           # NLP processing
+│   │   └── vector_store.py  # Vector database
+│   ├── main.py              # Bot entry point
+│   └── health.py            # Health monitoring
+├── models/                  # LLM model storage
+├── data/                    # Data storage
+├── logs/                    # Log files
+├── scripts/                 # Utility scripts
+├── Dockerfile              # Docker configuration
+├── docker-compose.yml      # Docker Compose config
+└── requirements.txt        # Python dependencies
+```
 
-### LLM Integration
-- **Context-Aware Responses**: Uses both recent messages and semantic search for context
-- **Placeholder Implementation**: Ready to integrate with various LLM providers
-- **Configurable Parameters**: Adjust context window, response delay, confidence threshold
+### Local Development
 
-### Scalability
-- **Hybrid Storage**: Balances immediate access with long-term efficiency
-- **Background Processing**: Dedicated threads for message processing
-- **Optimized Queries**: Indexed database and vector search for fast retrieval
+1. Create a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# or
+.\venv\Scripts\activate  # Windows
+```
 
-## Setup
-
-1. Clone the repository
 2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-3. Create a `.env` file with your Discord token:
-   ```
-   DISCORD_TOKEN=your_discord_token_here
-   ```
-4. Run the bot:
-   ```
-   python src/main.py
-   ```
-
-## Docker Deployment
-
-Build and run using Docker:
-
-```
-docker build -t omnius .
-docker run -d --name omnius -v $(pwd)/data:/app/data omnius
+```bash
+pip install -r requirements.txt
 ```
 
-## Configuration
-
-The bot can be configured through environment variables and the `config.py` file:
-
-- `DISCORD_TOKEN`: Your Discord bot token
-- `KNOWLEDGE_BASE_PATH`: Path to store message data
-- `RETENTION_DAYS`: Number of days to keep individual messages (default: 7)
-- `BATCH_SIZE`: Number of messages to process in a batch (default: 100)
-- `CONTEXT_WINDOW`: Number of messages to include for context
-- `RESPONSE_DELAY`: Delay in seconds before responding
-- `MIN_CONFIDENCE`: Minimum confidence threshold for responses
-
-## Extending the Bot
-
-### Adding New Commands
-Add new commands by creating methods in the appropriate cog or in the main bot class:
-
-```python
-@commands.command(name='command_name')
-async def command_method(self, ctx, *args):
-    # Command implementation
-    await ctx.send("Response")
+3. Run the bot:
+```bash
+python -m src.main
 ```
 
-### Integrating with LLMs
-To integrate with a specific LLM provider:
+## 📊 Monitoring
 
-1. Modify the `_init_llm` method in `llm_handler.py`
-2. Implement the `_generate_response` method to use your chosen LLM
-3. Configure the necessary API keys and parameters
+### Health Checks
 
-## License
+The bot includes built-in health monitoring:
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+- Memory usage tracking
+- Disk space monitoring
+- Response time tracking
+- Error rate monitoring
+
+Access health status via:
+```bash
+docker exec omnius python -c "from src.health import check_health; check_health()"
+```
+
+### Logging
+
+Logs are stored in `logs/omnius.log` and can be viewed with:
+```bash
+docker logs omnius
+```
+
+## 🔄 Maintenance
+
+### Backups
+
+Create a backup:
+```bash
+make backup
+```
+
+Restore from backup:
+```bash
+make restore BACKUP_FILE=backups/omnius_2024-04-05.tar.gz
+```
+
+### Updates
+
+Update the bot:
+```bash
+make update
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Mistral AI for the base model
+- The GGUF team for the efficient model format
+- The Discord.py team for the excellent library
+- The Dune universe for inspiration
+
+## 📚 Resources
+
+- [Discord.py Documentation](https://discordpy.readthedocs.io/)
+- [Mistral 7B Documentation](https://mistral.ai/models/)
+- [Docker Documentation](https://docs.docker.com/)
+- [ChromaDB Documentation](https://docs.trychroma.com/) 

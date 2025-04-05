@@ -1,21 +1,83 @@
 version: '3.8'
 
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "3"
+    compress: "true"
+
 services:
   omnius:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     container_name: omnius-bot
     restart: unless-stopped
+    init: true
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - type: bind
+        source: ./data
+        target: /app/data
+        read_only: false
+      - type: bind
+        source: ./logs
+        target: /app/logs
+        read_only: false
     environment:
       - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
       - TZ=UTC
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import discord; import openai; import chromadb; print('Health check passed')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=default
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=100M,noexec
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    sysctls:
+      net.core.somaxconn: 1024
+      net.ipv4.ip_unprivileged_port_start: 0
     networks:
       - omnius-network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.enable=false"
 
 networks:
   omnius-network:
-    driver: bridge 
+    driver: bridge
+    internal: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+    labels:
+      - "com.docker.network.bridge.name=omnius"
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "false" 
